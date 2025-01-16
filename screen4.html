@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة المهام</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Tajawal', Arial, sans-serif;
+            background-color: #f0f4f8;
+            direction: rtl;
+            overflow: hidden;
+        }
+        .tasks-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .section-title {
+            text-align: center;
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .tasks-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 5px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 10px;
+        }
+        .tasks-table th, .tasks-table td {
+            padding: 10px;
+            text-align: right;
+            font-size: 0.9em;
+        }
+        .tasks-table th {
+            background-color: #f0f0f0;
+            color: #2c3e50;
+        }
+        .task-row {
+            transition: background-color 0.3s ease;
+        }
+        .priority-high {
+            background-color: #ffdddd;
+            border-right: 5px solid #ff0000;
+        }
+        .priority-medium {
+            background-color: #fff4dd;
+            border-right: 5px solid #ffa500;
+        }
+        .priority-low {
+            background-color: #ddffdd;
+            border-right: 5px solid #4CAF50;
+        }
+        .empty-row {
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="tasks-container">
+        <h1 class="section-title">لوحة المهام</h1>
+        
+        <table class="tasks-table">
+            <thead>
+                <tr>
+                    <th>اسم المهمة</th>
+                    <th>مسندة إلى</th>
+                    <th>تاريخ الاستحقاق</th>
+                </tr>
+            </thead>
+            <tbody id="tasksList">
+                <!-- Tasks will be dynamically populated -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://qguwiwaltreecrbquoti.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndXdpd2FsdHJlZWNyYnF1b3RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ4NTQwNjEsImV4cCI6MjA1MDQzMDA2MX0.fFsZnqY-Prz8NYL55dhSY7AIl-FAlApvoZnwSbn8iMc';
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        // Get tasks list container
+        const tasksList = document.getElementById('tasksList');
+
+        // Function to render tasks
+        async function renderTasks() {
+            // Clear existing tasks
+            tasksList.innerHTML = '';
+            
+            try {
+                // Fetch tasks from Supabase
+                const { data: tasks, error } = await supabase
+                    .from('screen4_tasks')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(4);
+
+                if (error) {
+                    console.error('Error fetching tasks:', error);
+                    return;
+                }
+
+                // Sort tasks by priority and due date
+                tasks.sort((a, b) => {
+                    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+                    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                        return priorityOrder[b.priority] - priorityOrder[a.priority];
+                    }
+                    return new Date(a.due_date) - new Date(b.due_date);
+                });
+
+                // Create task rows
+                tasks.forEach(task => {
+                    const taskRow = document.createElement('tr');
+                    taskRow.classList.add('task-row', `priority-${task.priority}`);
+                    
+                    taskRow.innerHTML = `
+                        <td>${task.name}</td>
+                        <td>${task.assigned_to}</td>
+                        <td>${formatDate(task.due_date)}</td>
+                    `;
+                    
+                    tasksList.appendChild(taskRow);
+                });
+
+            } catch (err) {
+                console.error('Unexpected error:', err);
+            }
+        }
+
+        // Helper function to format date
+        function formatDate(dateString) {
+            if (!dateString) return 'غير محدد';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-EG', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Listen for updates from admin page
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'updateTasks') {
+                renderTasks();
+            }
+        });
+
+        // Initial render of tasks
+        renderTasks();
+
+        // Periodically refresh tasks
+        setInterval(renderTasks, 60000); // Refresh every minute
+    </script>
+</body>
+</html>

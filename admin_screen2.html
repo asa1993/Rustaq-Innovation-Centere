@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة أخبار المركز</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap');
+
+        body {
+            font-family: 'Tajawal', Arial, sans-serif;
+            direction: rtl;
+            background-color: #f4f4f8;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .admin-title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input, 
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .slide-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .submit-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .submit-btn:hover {
+            background-color: #27ae60;
+        }
+        .preview-image {
+            max-width: 200px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="admin-title">إدارة أخبار المركز</h1>
+        
+        <form id="newsForm">
+            <!-- Slide 1 -->
+            <div class="slide-section">
+                <h3>الشريحة الأولى</h3>
+                <div class="form-group">
+                    <label for="image1">صورة الشريحة</label>
+                    <input type="file" id="image1" name="image1" accept="image/*">
+                    <img id="preview1" class="preview-image" src="" style="display:none;">
+                </div>
+                <div class="form-group">
+                    <label for="text1">نص الشريحة</label>
+                    <textarea id="text1" name="text1" rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Slide 2 -->
+            <div class="slide-section">
+                <h3>الشريحة الثانية</h3>
+                <div class="form-group">
+                    <label for="image2">صورة الشريحة</label>
+                    <input type="file" id="image2" name="image2" accept="image/*">
+                    <img id="preview2" class="preview-image" src="" style="display:none;">
+                </div>
+                <div class="form-group">
+                    <label for="text2">نص الشريحة</label>
+                    <textarea id="text2" name="text2" rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Slide 3 -->
+            <div class="slide-section">
+                <h3>الشريحة الثالثة</h3>
+                <div class="form-group">
+                    <label for="image3">صورة الشريحة</label>
+                    <input type="file" id="image3" name="image3" accept="image/*">
+                    <img id="preview3" class="preview-image" src="" style="display:none;">
+                </div>
+                <div class="form-group">
+                    <label for="text3">نص الشريحة</label>
+                    <textarea id="text3" name="text3" rows="3"></textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">حفظ التغييرات</button>
+        </form>
+    </div>
+
+    <script>
+        // Image preview functionality
+        ['image1', 'image2', 'image3'].forEach(imageId => {
+            const input = document.getElementById(imageId);
+            const preview = document.getElementById(`preview${imageId.slice(-1)}`);
+            
+            input.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+
+        // Form submission handling
+        document.getElementById('newsForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Collect form data
+            const slides = [];
+            for (let i = 1; i <= 3; i++) {
+                const imageInput = document.getElementById(`image${i}`);
+                const textInput = document.getElementById(`text${i}`);
+                const preview = document.getElementById(`preview${i}`);
+                
+                slides.push({
+                    image: preview.src,
+                    text: textInput.value
+                });
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('screen2Slides', JSON.stringify(slides));
+            
+            // Update the main screen (if it's open)
+            window.opener?.postMessage({
+                type: 'updateSlides',
+                slides: slides
+            }, '*');
+            
+            alert('تم حفظ التغييرات بنجاح');
+        });
+
+        // Load saved data on page load
+        window.addEventListener('load', function() {
+            const savedSlides = JSON.parse(localStorage.getItem('screen2Slides') || '[]');
+            
+            savedSlides.forEach((slide, index) => {
+                const i = index + 1;
+                const preview = document.getElementById(`preview${i}`);
+                const textArea = document.getElementById(`text${i}`);
+                
+                if (slide.image) {
+                    preview.src = slide.image;
+                    preview.style.display = 'block';
+                }
+                
+                if (slide.text) {
+                    textArea.value = slide.text;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

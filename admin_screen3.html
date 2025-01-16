@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة لوحة المؤشرات</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', Arial, sans-serif;
+            background-color: #f0f4f8;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .dashboard-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        .form-group input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        #savedItemsList {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .saved-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .warning {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 10px;
+        }
+        #errorMessage {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="section-title">إدارة لوحة المؤشرات</h1>
+        
+        <form id="dashboardItemForm" class="dashboard-form">
+            <div class="form-group">
+                <label for="itemValue">القيمة</label>
+                <input type="text" id="itemValue" required>
+            </div>
+            <div class="form-group">
+                <label for="itemLabel">التسمية</label>
+                <input type="text" id="itemLabel" required>
+            </div>
+            <button type="submit" class="btn">إضافة عنصر</button>
+        </form>
+
+        <div id="savedItemsList">
+            <h2>العناصر المحفوظة</h2>
+            <!-- Saved items will be dynamically populated here -->
+        </div>
+
+        <div id="limitWarning" class="warning" style="display: none;">
+            تم الوصول للحد الأقصى (6 عناصر)
+        </div>
+
+        <div id="errorMessage"></div>
+    </div>
+
+    <script>
+        // Wait for Supabase configuration to load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Error handling function
+            function showError(message) {
+                const errorMessageEl = document.getElementById('errorMessage');
+                errorMessageEl.textContent = message;
+                setTimeout(() => {
+                    errorMessageEl.textContent = '';
+                }, 3000);
+            }
+
+            // Ensure Supabase client is created
+            let supabase;
+            try {
+                // Directly use the global variables set in supabase-config.js
+                const supabaseUrl = 'https://qguwiwaltreecrbquoti.supabase.co';
+                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndXdpd2FsdHJlZWNyYnF1b3RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ4NTQwNjEsImV4cCI6MjA1MDQzMDA2MX0.fFsZnqY-Prz8NYL55dhSY7AIl-FAlApvoZnwSbn8iMc';
+
+                // Create Supabase client
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+                // Verify client is created
+                if (!supabase) {
+                    throw new Error('Failed to create Supabase client');
+                }
+            } catch (error) {
+                console.error('Supabase initialization error:', error);
+                showError('خطأ في تهيئة قاعدة البيانات: ' + error.message);
+                return;
+            }
+
+            // Get form and list elements
+            const form = document.getElementById('dashboardItemForm');
+            const savedItemsList = document.getElementById('savedItemsList');
+            const limitWarning = document.getElementById('limitWarning');
+
+            // Function to save dashboard items to Supabase
+            async function saveDashboardItems(items) {
+                try {
+                    // Delete existing items
+                    const { error: deleteError } = await supabase
+                        .from('dashboard_items')
+                        .delete()
+                        .eq('screen', 'screen3');
+
+                    if (deleteError) throw deleteError;
+
+                    // Insert new items
+                    const itemsToInsert = items.map(item => ({
+                        label: item.label,
+                        value: item.value,
+                        screen: 'screen3'
+                    }));
+
+                    const { error: insertError } = await supabase
+                        .from('dashboard_items')
+                        .insert(itemsToInsert);
+
+                    if (insertError) throw insertError;
+
+                    // Send update message to screen3
+                    const screen3 = window.opener;
+                    if (screen3) {
+                        screen3.postMessage({
+                            type: 'updateDashboardItems',
+                            items: items
+                        }, '*');
+                    }
+                } catch (error) {
+                    console.error('Error saving dashboard items:', error);
+                    showError('خطأ في حفظ العناصر: ' + error.message);
+                }
+            }
+
+            // Function to render saved items
+            async function renderSavedItems() {
+                try {
+                    // Fetch items from Supabase
+                    const { data: savedItems, error } = await supabase
+                        .from('dashboard_items')
+                        .select('*')
+                        .eq('screen', 'screen3')
+                        .order('id', { ascending: true });
+
+                    if (error) throw error;
+
+                    // Clear existing list
+                    savedItemsList.innerHTML = '<h2>العناصر المحفوظة</h2>';
+
+                    // Populate saved items
+                    savedItems.forEach((item) => {
+                        const itemElement = document.createElement('div');
+                        itemElement.classList.add('saved-item');
+                        
+                        itemElement.innerHTML = `
+                            <span>${item.label}: ${item.value}</span>
+                            <button class="delete-btn" data-id="${item.id}">حذف</button>
+                        `;
+                        
+                        savedItemsList.appendChild(itemElement);
+                    });
+
+                    // Show/hide limit warning
+                    limitWarning.style.display = savedItems.length >= 6 ? 'block' : 'none';
+
+                    // Add event listeners to delete buttons
+                    document.querySelectorAll('.delete-btn').forEach(btn => {
+                        btn.addEventListener('click', async function() {
+                            const itemId = this.getAttribute('data-id');
+                            
+                            try {
+                                // Delete item from Supabase
+                                const { error } = await supabase
+                                    .from('dashboard_items')
+                                    .delete()
+                                    .eq('id', itemId);
+
+                                if (error) throw error;
+                                
+                                // Re-render list
+                                await renderSavedItems();
+                            } catch (error) {
+                                console.error('Error deleting item:', error);
+                                showError('خطأ في حذف العنصر: ' + error.message);
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.error('Error rendering saved items:', error);
+                    showError('خطأ في عرض العناصر: ' + error.message);
+                }
+            }
+
+            // Initial render of saved items
+            renderSavedItems();
+
+            // Handle form submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Get input values
+                const valueInput = document.getElementById('itemValue');
+                const labelInput = document.getElementById('itemLabel');
+                
+                try {
+                    // Fetch existing items
+                    const { data: savedItems, error: fetchError } = await supabase
+                        .from('dashboard_items')
+                        .select('*')
+                        .eq('screen', 'screen3');
+
+                    if (fetchError) throw fetchError;
+                    
+                    // Check if limit is reached
+                    if (savedItems.length >= 6) {
+                        limitWarning.style.display = 'block';
+                        showError('تم الوصول للحد الأقصى من العناصر');
+                        return;
+                    }
+                    
+                    // Insert new item
+                    const { error: insertError } = await supabase
+                        .from('dashboard_items')
+                        .insert({
+                            value: valueInput.value,
+                            label: labelInput.value,
+                            screen: 'screen3'
+                        });
+
+                    if (insertError) throw insertError;
+                    
+                    // Clear input fields
+                    valueInput.value = '';
+                    labelInput.value = '';
+                    
+                    // Re-render saved items
+                    await renderSavedItems();
+                } catch (error) {
+                    console.error('Error adding dashboard item:', error);
+                    showError('خطأ في إضافة العنصر: ' + error.message);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

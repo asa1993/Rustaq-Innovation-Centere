@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة المهام</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', Arial, sans-serif;
+            background-color: #f0f4f8;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .task-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        .form-group input, .form-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        #savedTasksList {
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .saved-task {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .saved-task-high {
+            background-color: #ffdddd;
+            border-right: 5px solid #ff0000;
+        }
+        .saved-task-medium {
+            background-color: #fff4dd;
+            border-right: 5px solid #ffa500;
+        }
+        .saved-task-low {
+            background-color: #ddffdd;
+            border-right: 5px solid #4CAF50;
+        }
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .warning {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="section-title">إدارة المهام</h1>
+        
+        <form id="taskForm" class="task-form">
+            <div class="form-group">
+                <label for="taskName">اسم المهمة</label>
+                <input type="text" id="taskName" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="assignedTo">مسندة إلى</label>
+                <input type="text" id="assignedTo" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="priority">الأولوية</label>
+                <select id="priority" required>
+                    <option value="high">عالية</option>
+                    <option value="medium">متوسطة</option>
+                    <option value="low">منخفضة</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="dueDate">تاريخ الاستحقاق</label>
+                <input type="date" id="dueDate" required>
+            </div>
+            
+            <button type="submit" class="btn">إضافة مهمة</button>
+        </form>
+
+        <div id="savedTasksList">
+            <h2>المهام المحفوظة</h2>
+            <!-- Saved tasks will be dynamically populated here -->
+        </div>
+
+        <div id="limitWarning" class="warning" style="display: none;">
+            تم الوصول للحد الأقصى (6 مهام)
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://qguwiwaltreecrbquoti.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFndXdpd2FsdHJlZWNyYnF1b3RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ4NTQwNjEsImV4cCI6MjA1MDQzMDA2MX0.fFsZnqY-Prz8NYL55dhSY7AIl-FAlApvoZnwSbn8iMc';
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        // Get form and list elements
+        const form = document.getElementById('taskForm');
+        const savedTasksList = document.getElementById('savedTasksList');
+        const limitWarning = document.getElementById('limitWarning');
+
+        // Function to fetch and render tasks
+        async function renderTasks() {
+            // Clear existing list
+            savedTasksList.innerHTML = '<h2>المهام المحفوظة</h2>';
+
+            try {
+                // Fetch tasks from Supabase
+                const { data: tasks, error } = await supabase
+                    .from('screen4_tasks')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(6);
+
+                if (error) throw error;
+
+                // Populate saved tasks
+                tasks.forEach((task) => {
+                    const taskElement = document.createElement('div');
+                    taskElement.classList.add('saved-task', `saved-task-${task.priority}`);
+                    
+                    taskElement.innerHTML = `
+                        <span>${task.name} - مسندة إلى: ${task.assigned_to} (${task.priority})</span>
+                        <button class="delete-btn" data-id="${task.id}">حذف</button>
+                    `;
+                    
+                    savedTasksList.appendChild(taskElement);
+                });
+
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const taskId = this.getAttribute('data-id');
+                        
+                        // Delete task from Supabase
+                        const { error } = await supabase
+                            .from('screen4_tasks')
+                            .delete()
+                            .eq('id', taskId);
+
+                        if (!error) {
+                            // Re-render tasks
+                            renderTasks();
+                            
+                            // Send update to screen4
+                            sendUpdateToScreen();
+                        }
+                    });
+                });
+
+                // Show/hide limit warning
+                limitWarning.style.display = tasks.length >= 6 ? 'block' : 'none';
+
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+            }
+        }
+
+        // Function to send update to screen4
+        async function sendUpdateToScreen() {
+            try {
+                // Fetch tasks to send
+                const { data: tasks, error } = await supabase
+                    .from('screen4_tasks')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(6);
+
+                if (error) throw error;
+
+                // Send message to screen4
+                const screen4 = window.opener;
+                if (screen4) {
+                    screen4.postMessage({
+                        type: 'updateTasks',
+                        tasks: tasks.map(task => ({
+                            name: task.name,
+                            assignedTo: task.assigned_to,
+                            priority: task.priority,
+                            dueDate: task.due_date
+                        }))
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('Error sending update:', error);
+            }
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Get input values
+            const nameInput = document.getElementById('taskName');
+            const assignedToInput = document.getElementById('assignedTo');
+            const priorityInput = document.getElementById('priority');
+            const dueDateInput = document.getElementById('dueDate');
+            
+            try {
+                // Check task count
+                const { count, error: countError } = await supabase
+                    .from('screen4_tasks')
+                    .select('*', { count: 'exact' });
+
+                if (countError) throw countError;
+                
+                // Check if limit is reached
+                if (count >= 6) {
+                    limitWarning.style.display = 'block';
+                    return;
+                }
+
+                // Insert new task
+                const { data, error } = await supabase
+                    .from('screen4_tasks')
+                    .insert([{
+                        name: nameInput.value,
+                        assigned_to: assignedToInput.value,
+                        priority: priorityInput.value,
+                        due_date: dueDateInput.value
+                    }]);
+
+                if (error) throw error;
+
+                // Re-render tasks
+                renderTasks();
+                
+                // Send update to screen4
+                sendUpdateToScreen();
+                
+                // Clear inputs
+                nameInput.value = '';
+                assignedToInput.value = '';
+                priorityInput.value = 'medium';
+                dueDateInput.value = '';
+
+            } catch (error) {
+                console.error('Error adding task:', error);
+            }
+        });
+
+        // Initial render of tasks
+        renderTasks();
+    </script>
+</body>
+</html>

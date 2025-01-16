@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مركز الابتكار</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            font-family: 'Tajawal', Arial, sans-serif;
+            background-color: #f0f4f8;
+            direction: rtl;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .screen {
+            position: relative;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .screen:hover {
+            transform: scale(1.02);
+        }
+
+        .screen iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .admin-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 12px;
+            height: 12px;
+            background-color: #ff6f00;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            transition: transform 0.3s ease;
+        }
+
+        .admin-btn:hover {
+            transform: scale(1.5);
+            box-shadow: 0 0 5px rgba(255,111,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="screen">
+            <iframe src="screen1.html"></iframe>
+        </div>
+        <div class="screen">
+            <iframe src="screen2.html"></iframe>
+        </div>
+        <div class="screen">
+            <iframe src="screen3.html"></iframe>
+        </div>
+        <div class="screen">
+            <iframe src="screen4.html"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // Add admin buttons dynamically
+        const screens = document.querySelectorAll('.screen');
+        const adminPages = ['admin_screen1.html', 'admin_screen2.html', 'admin_screen3.html', 'admin_screen4.html'];
+
+        screens.forEach((screen, index) => {
+            const adminBtn = document.createElement('div');
+            adminBtn.classList.add('admin-btn');
+            adminBtn.addEventListener('click', () => {
+                window.open(adminPages[index], '_blank', 'width=600,height=600');
+            });
+            screen.appendChild(adminBtn);
+        });
+    </script>
+</body>
+</html>
